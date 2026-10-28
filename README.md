@@ -134,11 +134,14 @@ which clones the repository, probes it as a plugin and asks for confirmation
 before installing. Publishing this repo would make that link usable for one-step
 install.
 
-This repository is currently private, so that link will not work yet: cloning a
-private repo needs credentials the installer does not supply. It becomes usable
-once the repo is public. What has been tested end to end is the copy-and-restart
-sequence above; the in-app installer was read but not exercised, against either
-a local path or a remote.
+The repository is public, so
+
+    hermes://plugin/install?repo=BrokenwingS83/hermes-eva-theme
+
+is the intended one-step install. It has not been exercised end to end here: the
+installer's parser and probe were read, but the flow was never run against a
+remote. What is tested is the copy-and-restart sequence above. If the deep link
+misbehaves, use that; a report of what it printed is welcome.
 
 ## Known limitations
 
