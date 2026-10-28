@@ -1,10 +1,13 @@
 # hermes-eva-theme
 
 An Evangelion (NERV / MAGI) skin for Hermes Desktop: a dual-pilot colour theme,
-a launch boot sequence, and a MAGI HUD pane. Ported from the DeepSeek Harness
-plugin `seaison/dsh-plugin-eva-theme`.
+a launch boot sequence, and a MAGI HUD pane.
 
-Repository: https://github.com/BrokenwingS83/hermes-eva-theme (private).
+This is a port of the DeepSeek Harness plugin DSH EVA Theme by seaison:
+
+    https://github.com/seaison/dsh-plugin-eva-theme
+
+Repository: https://github.com/BrokenwingS83/hermes-eva-theme
 
 Dark mode is Asuka (red), light mode is Rei (blue). The pilot reading follows
 the app's own mode, so switching Appearance switches pilots.
@@ -155,6 +158,18 @@ a local path or a remote.
   With no session it shows an em dash rather than a guess.
 - The tail of the boot sequence and the pane's on-screen size were verified on
   an isolated instance over CDP, not in a production window (no debug port).
+
+## Upstream project
+
+DSH EVA Theme, by seaison — https://github.com/seaison/dsh-plugin-eva-theme
+
+Ported at v0.51.2 (`f8b9638`). Nearly everything visible here comes from that
+project: the 107-entry palette, the boot-sequence design and its copy, the
+scanline and Mincho styling intent, and the asset filenames. What this port
+replaced is the host layer — cordis selectors and DSH CSS modules have no Hermes
+equivalent — and the now-playing player, the balance proxy and the track control,
+which are dropped. NOTICE records what is derived, what is not distributed, and
+under which terms.
 
 ## Licence
 

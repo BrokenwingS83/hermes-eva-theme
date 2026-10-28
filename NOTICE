@@ -8,7 +8,8 @@ licence.
    MIT. See LICENSE. Covers build/build.mjs, src/body.js, the generated
    plugin/plugin.js, docs/ and the README.
 
-2. Upstream plugin — seaison/dsh-plugin-eva-theme
+2. Upstream plugin — DSH EVA Theme
+   seaison/dsh-plugin-eva-theme
    MIT code, https://github.com/seaison/dsh-plugin-eva-theme
    Ported at commit f8b9638 ("docs: refresh README showcase and v0.51.2
    installation guide", v0.51.2).
