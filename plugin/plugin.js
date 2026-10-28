@@ -184,7 +184,7 @@ const SKIN_CSS = `
 :root[data-hermes-theme="eva"] h1,
 :root[data-hermes-theme="eva"] h2,
 :root[data-hermes-theme="eva"] h3 {
-  font-family: 'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Times New Roman', serif;
+  font-family: 'Hiragino Mincho ProN', 'Noto Serif CJK JP', 'Songti SC', 'STSong', 'Noto Serif CJK SC', 'MS Mincho', 'Times New Roman', serif;
   letter-spacing: 0.04em;
 }
 :root[data-hermes-theme="eva"] {
@@ -249,6 +249,19 @@ const settingsOf = (ctx) => {
     settings.soundEnabled = ctx.storage.get('soundEnabled', true) !== false
   } catch (_) {}
   return settings
+}
+
+/** The last boot trace, for the settings page and the palette command. The
+ *  overlay writes it on every run; without a reader a failed boot is invisible
+ *  unless you go digging in storage. */
+const lastBoot = (ctx) => {
+  try {
+    const raw = ctx.storage.get('bootTrace', null)
+    if (!raw) return null
+    return typeof raw === 'string' ? JSON.parse(raw) : raw
+  } catch (_) {
+    return null
+  }
 }
 
 const applyScanline = (ctx) => {
@@ -367,6 +380,10 @@ function MagiPane({ ctx }) {
   const context = usage && Number.isFinite(usage.context_percent) ? Math.round(usage.context_percent) + '%' : '—'
   const tokens = usage && Number.isFinite(usage.total) ? usage.total.toLocaleString('en-US') : '—'
   const cost = usage && Number.isFinite(usage.cost_usd) ? '$' + usage.cost_usd.toFixed(4) : '—'
+  const contextPct = usage && Number.isFinite(usage.context_percent)
+    ? Math.max(0, Math.min(100, usage.context_percent))
+    : null
+  const contextTone = contextPct === null ? null : contextPct > 95 ? 'var(--ui-red)' : contextPct > 80 ? 'var(--ui-yellow)' : 'var(--ui-green)'
 
   const row = (label, value, tone) =>
     h(
@@ -375,6 +392,32 @@ function MagiPane({ ctx }) {
       h('span', { style: LABEL_STYLE }, label),
       h('span', { style: tone ? { ...VALUE_STYLE, color: tone } : VALUE_STYLE }, value)
     )
+
+  // CONTEXT is the one reading that changes what the reader should do next, so
+  // it gets a bar rather than a number in a column. Tone crosses yellow at 80%
+  // and red at 95%; with no reading the bar stays empty and the value is a dash.
+  const contextBlock = h(
+    'div',
+    { style: { display: 'flex', flexDirection: 'column', gap: '4px', padding: '3px 0 4px' } },
+    h(
+      'div',
+      { style: ROW_STYLE },
+      h('span', { style: LABEL_STYLE }, 'CONTEXT'),
+      h('span', { style: contextTone ? { ...VALUE_STYLE, color: contextTone } : VALUE_STYLE }, context)
+    ),
+    h(
+      'div',
+      { style: { height: '2px', background: 'var(--ui-bg-quaternary)' } },
+      h('div', {
+        style: {
+          width: (contextPct === null ? 0 : contextPct) + '%',
+          height: '100%',
+          background: contextTone || accent,
+          transition: 'width 240ms linear'
+        }
+      })
+    )
+  )
 
   return h(
     'div',
@@ -393,7 +436,7 @@ function MagiPane({ ctx }) {
       h(
         'span',
         { style: { marginLeft: 'auto', fontSize: '9px', letterSpacing: '0.14em', color: 'var(--ui-text-quaternary)' } },
-        busy ? 'SYNC' : 'IDLE'
+        busy ? 'SYNC' : usage ? 'IDLE' : 'NO SYNC'
       )
     ),
     h(
@@ -415,11 +458,11 @@ function MagiPane({ ctx }) {
     row('MODEL', model || '—'),
     row('SESSION', sessionId ? String(sessionId).slice(0, 8) : 'draft'),
     row('TPS', tps),
-    row('CONTEXT', context),
+    contextBlock,
     row('TOKENS', tokens),
     row('COST', cost),
     row('WINDOW', billing.peak ? 'PEAK · 2x' : 'OFF-PEAK · ½', billing.peak ? 'var(--ui-yellow)' : 'var(--ui-green)'),
-    row('NEXT', (billing.peak ? 'off-peak in ' : 'peak in ') + countdownText(billing.minutes))
+    row('NEXT', (billing.peak ? 'off-peak in ' : 'peak in ') + countdownText(billing.minutes), billing.minutes < 15 ? 'var(--ui-yellow)' : undefined)
   )
 }
 
@@ -435,7 +478,8 @@ function EvaChip({ ctx }) {
     {
       'data-eva-chip': 'true',
       title: (billing.peak ? 'Peak window — 2x list price. ' : 'Off-peak — half price. ') +
-        (billing.flipsAt ? 'Changes at ' + clockText(billing.flipsAt).slice(0, 5) : ''),
+        (billing.flipsAt ? 'Changes at ' + clockText(billing.flipsAt).slice(0, 5) + '. ' : '') +
+        'Published peak hours only; public holidays are not excluded.',
       style: {
         display: 'inline-flex',
         alignItems: 'center',
@@ -518,6 +562,12 @@ function EvaSettings({ ctx }) {
     onChange: (id) => save('clockScale', Number(id))
   })
 
+  const trace = lastBoot(ctx)
+  let skipped = null
+  try {
+    skipped = ctx.storage.get('bootSkipped', null)
+  } catch (_) {}
+
   return h('div', {
     'data-eva-settings': 'true',
     style: { display: 'flex', flexDirection: 'column', gap: '2px' },
@@ -539,6 +589,36 @@ function EvaSettings({ ctx }) {
       h(ListRow, { key: 'lang', title: 'Boot language', description: 'Wording of the pilot selection screen.', action: language }),
       h(ListRow, { key: 'scan', title: 'Scanlines', description: 'CRT overlay strength across the window.', action: scanline }),
       h(ListRow, { key: 'clock', title: 'MAGI clock size', description: 'Type scale of the clock in the MAGI pane.', action: scale }),
+      h(
+        'div',
+        { key: 'trace', style: { display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '16px' } },
+        h(
+          'div',
+          { style: { fontSize: '10px', letterSpacing: '0.18em', color: 'var(--ui-text-quaternary)' } },
+          'LAST BOOT'
+        ),
+        h(
+          'div',
+          { style: { fontSize: '11px', color: 'var(--ui-text-secondary)' } },
+          trace
+            ? (trace.reason || 'unknown') +
+                ' · ' +
+                ((Number(trace.durationMs) || 0) / 1000).toFixed(1) +
+                's · ' +
+                (trace.phases || []).length +
+                ' phases'
+            : skipped
+              ? 'skipped: ' + (skipped.reason || 'unknown')
+              : 'no boot recorded yet'
+        ),
+        trace && (trace.phases || []).length
+          ? h(
+              'div',
+              { style: { fontSize: '10px', lineHeight: 1.6, color: 'var(--ui-text-quaternary)' } },
+              (trace.phases || []).map((phase) => phase.phase).join(' → ')
+            )
+          : null
+      ),
       h('div', {
         key: 'reset',
         style: { display: 'flex', justifyContent: 'flex-end', paddingTop: '14px' },
@@ -563,7 +643,7 @@ const BOOT_CSS = `
 .eva-boot-alarm { width: min(70vw, 760px); opacity: 0; animation: eva-alarm-pulse 1.1s ease-in-out infinite; }
 @keyframes eva-alarm-pulse { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
 .eva-boot-type { font-size: clamp(20px, 3.2vw, 40px); letter-spacing: .28em; color: #ff354d;
-  font-family: 'Songti SC', 'STSong', serif; white-space: pre; }
+  font-family: 'Hiragino Mincho ProN', 'Noto Serif CJK JP', 'Songti SC', 'STSong', 'Noto Serif CJK SC', 'MS Mincho', serif; white-space: pre; }
 .eva-boot-caret { display: inline-block; width: .5em; background: #ff354d; animation: eva-blink .7s steps(1) infinite; }
 @keyframes eva-blink { 50% { opacity: 0 } }
 .eva-boot-pilots { display: flex; gap: clamp(24px, 6vw, 96px); }
@@ -573,7 +653,7 @@ const BOOT_CSS = `
 .eva-boot-card:hover, .eva-boot-card:focus-visible { outline: none; transform: translateY(-4px); }
 .eva-boot-card img { width: 100%; height: auto; display: block; filter: grayscale(.15); }
 .eva-boot-card .n { font-size: 12px; letter-spacing: .3em; opacity: .7 }
-.eva-boot-card .nm { font-family: 'Songti SC', serif; letter-spacing: .18em; font-size: 15px }
+.eva-boot-card .nm { font-family: 'Hiragino Mincho ProN', 'Noto Serif CJK JP', 'Songti SC', 'Noto Serif CJK SC', 'MS Mincho', serif; letter-spacing: .18em; font-size: 15px }
 .eva-boot-hint { position: absolute; bottom: 28px; left: 0; right: 0; text-align: center; font-size: 12px;
   letter-spacing: .22em; opacity: .45 }
 .eva-boot-sync { width: min(62vw, 560px); display: flex; flex-direction: column; gap: 14px; align-items: center }
@@ -982,6 +1062,31 @@ export default {
           const next = ctx.storage.get('bootEnabled', true) === false
           ctx.storage.set('bootEnabled', next)
           host.notify({ kind: 'info', message: next ? 'EVA boot will play on the next launch.' : 'EVA boot disabled for launches.' })
+        }
+      }
+    })
+    ctx.register({
+      id: 'trace',
+      area: PALETTE_AREA,
+      data: {
+        id: PACKAGE_ID + '.trace',
+        label: 'EVA: show the last boot trace',
+        keywords: ['eva', 'boot', 'trace', 'diagnostics', 'phases'],
+        run: () => {
+          const trace = lastBoot(ctx)
+          if (host.navigate) host.navigate('/settings?tab=plugins&plugin=' + PACKAGE_ID + ':settings')
+          host.notify({
+            kind: 'info',
+            message: trace
+              ? 'Last boot: ' +
+                (trace.reason || 'unknown') +
+                ' in ' +
+                ((Number(trace.durationMs) || 0) / 1000).toFixed(1) +
+                's, ' +
+                (trace.phases || []).length +
+                ' phases. Full trace is on the EVA settings page.'
+              : 'No boot trace recorded yet.'
+          })
         }
       }
     })
