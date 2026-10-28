@@ -1,0 +1,12 @@
+# Third-party media supplied by the user (see NOTICE). Not distributed.
+plugin/media/
+media-src/*
+!media-src/README.md
+
+# Upstream checkout used as the build source
+vendor/
+
+# Transient build output
+out/
+node_modules/
+.DS_Store

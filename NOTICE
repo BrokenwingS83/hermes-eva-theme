@@ -1,0 +1,52 @@
+NOTICE
+
+hermes-eva-theme is a port of a DeepSeek Harness plugin to Hermes Desktop.
+Three kinds of material end up in the same folder, and they do not share a
+licence.
+
+1. Port code — this repository
+   MIT. See LICENSE. Covers build/build.mjs, src/body.js, the generated
+   plugin/plugin.js, docs/ and the README.
+
+2. Upstream plugin — seaison/dsh-plugin-eva-theme
+   MIT code, https://github.com/seaison/dsh-plugin-eva-theme
+   Ported at commit f8b9638 ("docs: refresh README showcase and v0.51.2
+   installation guide", v0.51.2).
+
+   What this port takes from it:
+   - the 107-entry PALETTE table (every colour value in plugin/plugin.js)
+   - the boot-sequence design (NERV card, emergency alarm, pilot select,
+     plug sync, doors) and its copy
+   - the scanline, Mincho-heading and hairline styling intent
+   - file layout conventions for its assets/ folder
+
+   What it does not take: the cordis host API, the DSH CSS Modules selectors,
+   the now-playing player, the balance proxy and the osascript track control.
+   Those have no Hermes equivalent or were dropped by decision (see the
+   repository's docs and the porting notes).
+
+   The upstream MIT licence text applies to that code; keep its copyright and
+   permission notice with any redistribution of the derived parts.
+
+3. Media — third-party, not distributed here
+   The plugin references these assets at runtime, but this repository does not
+   ship them, and the MIT licence above does not apply to them:
+
+   - character line art and avatars (Asuka, Rei)
+   - voice clips
+   - the NERV boot animation and the NERV / emergency / entry-plug SVGs
+   - the original sound track, if a user adds one
+
+   They carry their own terms (the upstream repository's NOTICE.md and
+   docs/assets.md describe them). Treat them as local, personal use only: do
+   not publish a package, archive or repository that contains them, and do not
+   use them commercially.
+
+   To run the plugin you supply them yourself: build from an upstream checkout
+   (see README) or drop your own files into media-src/ under the exact names
+   listed in media-src/README.md.
+
+Evangelion and all related characters, names and imagery are the property of
+khara and their respective rights holders. This project is a personal,
+non-commercial fan port. It is not affiliated with, endorsed by or licensed by
+khara, Gainax, DeepSeek, or the upstream plugin's author.
