@@ -18,7 +18,7 @@ import {
   requestTheme,
   useValue
 } from '@hermes/plugin-sdk'
-import { createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useRef, useState } from 'react'
 
 const EVA_THEME = {
   "name": "eva",
@@ -148,6 +148,66 @@ const stopVoice = () => {
     activeAudio.removeAttribute('src')
   } catch (_) {}
   activeAudio = null
+}
+
+// Boot copy and the handful of strings that carry meaning rather than data.
+// Panel field labels stay English on purpose: PILOT / TPS / CONTEXT read as
+// system text, which is the point; only status words and page prose translate.
+const UI = {
+  zh: {
+    sync: '同步中',
+    idle: '待机',
+    noSync: '无连接',
+    lastBoot: '上次启动',
+    noBoot: '还没有启动记录',
+    phases: '阶段',
+    skipped: '已跳过',
+    reset: '恢复 EVA 默认设置',
+    resetDone: 'EVA 设置已恢复默认。',
+    settings: {
+      boot: ['启动序列', '新开窗口时播放一次 NERV 启动动画。'],
+      sound: ['启动音效', '启动过程中播放驾驶员语音。'],
+      lang: ['启动语言', '驾驶员选择界面的文案语言。'],
+      scan: ['扫描线', '整个窗口的 CRT 扫描线强度。'],
+      clock: ['MAGI 时钟字号', 'MAGI 面板里时钟的显示大小。']
+    }
+  },
+  ja: {
+    sync: 'シンクロ中',
+    idle: '待機',
+    noSync: '未接続',
+    lastBoot: '前回の起動',
+    noBoot: '起動記録はまだありません',
+    phases: 'フェーズ',
+    skipped: 'スキップ',
+    reset: 'EVA 設定を初期化',
+    resetDone: 'EVA 設定を初期化しました。',
+    settings: {
+      boot: ['パイロット起動シーケンス', '新しいウィンドウで NERV 起動オーバーレイを一度再生します。'],
+      sound: ['起動サウンド', '起動時にパイロットのボイスを再生します。'],
+      lang: ['起動時の言語', 'パイロット選択画面の文言。'],
+      scan: ['走査線', 'ウィンドウ全体の CRT 走査線の強さ。'],
+      clock: ['MAGI 時計のサイズ', 'MAGI パネルの時計の表示倍率。']
+    }
+  },
+  en: {
+    sync: 'SYNC',
+    idle: 'IDLE',
+    noSync: 'NO SYNC',
+    lastBoot: 'LAST BOOT',
+    noBoot: 'no boot recorded yet',
+    phases: 'phases',
+    skipped: 'skipped',
+    reset: 'Reset EVA settings',
+    resetDone: 'EVA settings reset to defaults.',
+    settings: {
+      boot: ['Pilot boot sequence', 'Play the NERV boot overlay once on a fresh launch.'],
+      sound: ['Boot sounds', 'Pilot voice clips during the boot sequence.'],
+      lang: ['Boot language', 'Wording of the pilot selection screen.'],
+      scan: ['Scanlines', 'CRT overlay strength across the window.'],
+      clock: ['MAGI clock size', 'Type scale of the clock in the MAGI pane.']
+    }
+  }
 }
 
 const COPY = {
@@ -372,7 +432,27 @@ function MagiPane({ ctx }) {
   const pilot = PILOTS[mode === 'dark' ? 0 : 1]
   const billing = billingNow(now)
   const accent = mode === 'dark' ? 'var(--ui-red)' : 'var(--ui-accent)'
-  const scale = settingsOf(ctx).clockScale
+  const settings = settingsOf(ctx)
+  const scale = settings.clockScale
+  const ui = UI[settings.language] || UI.en
+
+  // TPS is a rolling average, so this keeps the last 40 readings (one a second)
+  // and draws them. It is atmosphere more than signal: the number below it is
+  // the reading to trust.
+  const samplesRef = useRef([])
+  if (usage && Number.isFinite(usage.avg_tps)) {
+    samplesRef.current.push(usage.avg_tps)
+    if (samplesRef.current.length > 40) samplesRef.current.shift()
+  }
+  const samples = samplesRef.current
+  const samplePeak = samples.length ? Math.max(1, ...samples) : 1
+  const wavePoints = samples
+    .map((value, index) => {
+      const x = samples.length > 1 ? (index / (samples.length - 1)) * 100 : 0
+      const y = 19 - (Math.max(0, value) / samplePeak) * 17
+      return x.toFixed(1) + ',' + y.toFixed(1)
+    })
+    .join(' ')
 
   // Nothing is invented when the backend has not reported yet: a missing
   // reading is an em dash, never a zero.
@@ -391,6 +471,13 @@ function MagiPane({ ctx }) {
       { style: ROW_STYLE },
       h('span', { style: LABEL_STYLE }, label),
       h('span', { style: tone ? { ...VALUE_STYLE, color: tone } : VALUE_STYLE }, value)
+    )
+
+  const sectionLabel = (text) =>
+    h(
+      'div',
+      { style: { fontSize: '9px', letterSpacing: '0.22em', color: 'var(--ui-text-quaternary)', padding: '9px 0 3px' } },
+      text
     )
 
   // CONTEXT is the one reading that changes what the reader should do next, so
@@ -436,7 +523,7 @@ function MagiPane({ ctx }) {
       h(
         'span',
         { style: { marginLeft: 'auto', fontSize: '9px', letterSpacing: '0.14em', color: 'var(--ui-text-quaternary)' } },
-        busy ? 'SYNC' : usage ? 'IDLE' : 'NO SYNC'
+        busy ? ui.sync : usage ? ui.idle : ui.noSync
       )
     ),
     h(
@@ -454,13 +541,37 @@ function MagiPane({ ctx }) {
       },
       clockText(now)
     ),
+    sectionLabel('SYSTEM'),
     row('PILOT', pilot.name + ' · ' + pilot.number, accent),
     row('MODEL', model || '—'),
     row('SESSION', sessionId ? String(sessionId).slice(0, 8) : 'draft'),
+    sectionLabel('SYNC'),
     row('TPS', tps),
+    h(
+      'svg',
+      {
+        viewBox: '0 0 100 20',
+        preserveAspectRatio: 'none',
+        width: '100%',
+        height: '18px',
+        style: { display: 'block', margin: '1px 0 3px', color: accent, overflow: 'visible' }
+      },
+      h('line', { x1: 0, y1: 19, x2: 100, y2: 19, stroke: 'currentColor', strokeWidth: 0.4, opacity: 0.22 }),
+      wavePoints
+        ? h('polyline', {
+            points: wavePoints,
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: 0.9,
+            vectorEffect: 'non-scaling-stroke',
+            strokeLinejoin: 'round'
+          })
+        : null
+    ),
     contextBlock,
     row('TOKENS', tokens),
     row('COST', cost),
+    sectionLabel('BILLING'),
     row('WINDOW', billing.peak ? 'PEAK · 2x' : 'OFF-PEAK · ½', billing.peak ? 'var(--ui-yellow)' : 'var(--ui-green)'),
     row('NEXT', (billing.peak ? 'off-peak in ' : 'peak in ') + countdownText(billing.minutes), billing.minutes < 15 ? 'var(--ui-yellow)' : undefined)
   )
@@ -512,6 +623,7 @@ function EvaChip({ ctx }) {
 
 function EvaSettings({ ctx }) {
   const [state, setState] = useState(() => settingsOf(ctx))
+  const ui = UI[state.language] || UI.en
 
   const save = (key, value) => {
     try {
@@ -529,7 +641,7 @@ function EvaSettings({ ctx }) {
     }
     setState(settingsOf(ctx))
     applyScanline(ctx)
-    host.notify({ kind: 'info', message: 'EVA settings reset to defaults.' })
+    host.notify({ kind: 'info', message: ui.resetDone })
   }
 
   const language = h(SegmentedControl, {
@@ -574,28 +686,28 @@ function EvaSettings({ ctx }) {
     children: [
       h(ToggleRow, {
         key: 'boot',
-        label: 'Pilot boot sequence',
-        description: 'Play the NERV boot overlay once on a fresh launch.',
+        label: ui.settings.boot[0],
+        description: ui.settings.boot[1],
         checked: state.bootEnabled,
         onChange: (on) => save('bootEnabled', on)
       }),
       h(ToggleRow, {
         key: 'sound',
-        label: 'Boot sounds',
-        description: 'Pilot voice clips during the boot sequence.',
+        label: ui.settings.sound[0],
+        description: ui.settings.sound[1],
         checked: state.soundEnabled,
         onChange: (on) => save('soundEnabled', on)
       }),
-      h(ListRow, { key: 'lang', title: 'Boot language', description: 'Wording of the pilot selection screen.', action: language }),
-      h(ListRow, { key: 'scan', title: 'Scanlines', description: 'CRT overlay strength across the window.', action: scanline }),
-      h(ListRow, { key: 'clock', title: 'MAGI clock size', description: 'Type scale of the clock in the MAGI pane.', action: scale }),
+      h(ListRow, { key: 'lang', title: ui.settings.lang[0], description: ui.settings.lang[1], action: language }),
+      h(ListRow, { key: 'scan', title: ui.settings.scan[0], description: ui.settings.scan[1], action: scanline }),
+      h(ListRow, { key: 'clock', title: ui.settings.clock[0], description: ui.settings.clock[1], action: scale }),
       h(
         'div',
         { key: 'trace', style: { display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '16px' } },
         h(
           'div',
           { style: { fontSize: '10px', letterSpacing: '0.18em', color: 'var(--ui-text-quaternary)' } },
-          'LAST BOOT'
+          ui.lastBoot
         ),
         h(
           'div',
@@ -606,10 +718,10 @@ function EvaSettings({ ctx }) {
                 ((Number(trace.durationMs) || 0) / 1000).toFixed(1) +
                 's · ' +
                 (trace.phases || []).length +
-                ' phases'
+                ' ' + ui.phases
             : skipped
-              ? 'skipped: ' + (skipped.reason || 'unknown')
-              : 'no boot recorded yet'
+              ? ui.skipped + ': ' + (skipped.reason || 'unknown')
+              : ui.noBoot
         ),
         trace && (trace.phases || []).length
           ? h(
@@ -622,7 +734,7 @@ function EvaSettings({ ctx }) {
       h('div', {
         key: 'reset',
         style: { display: 'flex', justifyContent: 'flex-end', paddingTop: '14px' },
-        children: h(Button, { variant: 'secondary', onClick: reset, children: 'Reset EVA settings' })
+        children: h(Button, { variant: 'secondary', onClick: reset, children: ui.reset })
       })
     ]
   })
@@ -647,13 +759,16 @@ const BOOT_CSS = `
 .eva-boot-caret { display: inline-block; width: .5em; background: #ff354d; animation: eva-blink .7s steps(1) infinite; }
 @keyframes eva-blink { 50% { opacity: 0 } }
 .eva-boot-pilots { display: flex; gap: clamp(24px, 6vw, 96px); }
-.eva-boot-card { width: clamp(160px, 20vw, 260px); padding: 18px; border: 1px solid rgba(232,228,220,.28);
+.eva-boot-card { position: relative; overflow: hidden; width: clamp(160px, 20vw, 260px); padding: 18px; border: 1px solid rgba(232,228,220,.28);
   background: rgba(255,255,255,.02); display: flex; flex-direction: column; align-items: center; gap: 12px;
   cursor: pointer; transition: border-color .25s ease, transform .25s ease, background .25s ease; }
 .eva-boot-card:hover, .eva-boot-card:focus-visible { outline: none; transform: translateY(-4px); }
-.eva-boot-card img { width: 100%; height: auto; display: block; filter: grayscale(.15); }
-.eva-boot-card .n { font-size: 12px; letter-spacing: .3em; opacity: .7 }
-.eva-boot-card .nm { font-family: 'Hiragino Mincho ProN', 'Noto Serif CJK JP', 'Songti SC', 'Noto Serif CJK SC', 'MS Mincho', serif; letter-spacing: .18em; font-size: 15px }
+.eva-boot-card img { position: relative; z-index: 1; width: 100%; height: auto; display: block; filter: grayscale(.15); }
+.eva-boot-card .n { position: relative; z-index: 1; font-size: 12px; letter-spacing: .3em; opacity: .7 }
+.eva-boot-card::after { content: attr(data-num); position: absolute; right: 6px; bottom: -18px; z-index: 0;
+  font-family: 'Hiragino Mincho ProN', 'Noto Serif CJK JP', 'Songti SC', serif; font-size: 78px; line-height: 1;
+  letter-spacing: 0; opacity: .1; pointer-events: none }
+.eva-boot-card .nm { position: relative; z-index: 1; font-family: 'Hiragino Mincho ProN', 'Noto Serif CJK JP', 'Songti SC', 'Noto Serif CJK SC', 'MS Mincho', serif; letter-spacing: .18em; font-size: 15px }
 .eva-boot-hint { position: absolute; bottom: 28px; left: 0; right: 0; text-align: center; font-size: 12px;
   letter-spacing: .22em; opacity: .45 }
 .eva-boot-sync { width: min(62vw, 560px); display: flex; flex-direction: column; gap: 14px; align-items: center }
@@ -745,6 +860,21 @@ function runBoot(ctx, opts) {
     if (event.key === 'Escape') {
       event.preventDefault()
       finish('escape')
+      return
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      if (root.dataset.phase !== 'select') return
+      const index = event.key === 'ArrowLeft' ? 0 : 1
+      const target = PILOTS[index]
+      const card = root.querySelector('.eva-boot-card[data-pilot="' + target.id + '"]')
+      if (card) {
+        event.preventDefault()
+        card.focus()
+        for (const other of root.querySelectorAll('.eva-boot-card')) {
+          other.style.borderColor = (other.dataset.pilot === target.id ? target.accent : PILOT_ACCENTS[other.dataset.pilot]) + (other.dataset.pilot === target.id ? '' : '55')
+        }
+        mark('arrow', { pilot: target.id })
+      }
       return
     }
     if (event.key === '1' || event.key === '2') {
@@ -839,6 +969,7 @@ function runBoot(ctx, opts) {
           role: 'button',
           tabindex: '0',
           'data-pilot': pilot.id,
+          'data-num': pilot.number,
           style: 'border-color:' + pilot.accent + '55'
         },
         el('span', { class: 'n', text: pilot.number }),

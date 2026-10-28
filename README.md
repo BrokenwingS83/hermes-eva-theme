@@ -82,7 +82,16 @@ its trace and continues, and the MAGI pane is unaffected.
                          artifacts; exit 1 on drift
 
 `--check` needs the upstream checkout, because the palette and media are its
-single source: `node build/build.mjs <upstream> --check`.
+single source: `node build/build.mjs <upstream> --check`. It compares four
+artifacts, `docs/preview.html` among them.
+
+`docs/palette.png` is the one thing the build does not write, because pixel
+output would make the drift check meaningless. Regenerate it by hand when the
+palette changes:
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+      --disable-gpu --hide-scrollbars --window-size=1320,3600 \
+      --screenshot="$PWD/docs/palette.png" "file://$PWD/docs/preview.html"
 
 The build fails on purpose when any of these break:
 
@@ -101,11 +110,14 @@ The build fails on purpose when any of these break:
     plugin/eva-theme.theme.json  theme object alone, for diffing
     plugin/media/             copied assets (gitignored)
     docs/theme-tokens.md      generated: 107 upstream tokens and where each lands
+    docs/preview.html         generated: the same rows as swatches, plus contrast table
+    docs/palette.png          screenshot of preview.html, for the README
     media-src/                your own assets (gitignored except its README)
     vendor/                   upstream checkout used as build input (gitignored)
     fit-report.md             feasibility assessment written before the port
 
-`plugin.js`, `eva-theme.theme.json` and `docs/theme-tokens.md` are generated.
+`plugin.js`, `eva-theme.theme.json`, `docs/theme-tokens.md` and
+`docs/preview.html` are generated.
 Edit `src/body.js` or `build/build.mjs` and rebuild; a hand edit to the artifact
 is overwritten.
 
@@ -142,6 +154,14 @@ is the intended one-step install. It has not been exercised end to end here: the
 installer's parser and probe were read, but the flow was never run against a
 remote. What is tested is the copy-and-restart sequence above. If the deep link
 misbehaves, use that; a report of what it printed is welcome.
+
+## Palette
+
+![EVA palette: 107 upstream tokens, light and dark](docs/palette.png)
+
+Both columns are the upstream hex values, not what Hermes renders after it mixes
+its own seeds in. `docs/preview.html` has the same cards with hexes and a
+contrast table; open it locally, since GitHub shows HTML as source.
 
 ## Known limitations
 
