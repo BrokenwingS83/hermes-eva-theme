@@ -4,6 +4,8 @@ An Evangelion (NERV / MAGI) skin for Hermes Desktop: a dual-pilot colour theme,
 a launch boot sequence, and a MAGI HUD pane. Ported from the DeepSeek Harness
 plugin `seaison/dsh-plugin-eva-theme`.
 
+Repository: https://github.com/BrokenwingS83/hermes-eva-theme (private).
+
 Dark mode is Asuka (red), light mode is Rei (blue). The pilot reading follows
 the app's own mode, so switching Appearance switches pilots.
 
@@ -129,9 +131,11 @@ which clones the repository, probes it as a plugin and asks for confirmation
 before installing. Publishing this repo would make that link usable for one-step
 install.
 
-Not verified here: this copy is a local repository, and the in-app installer was
-not exercised against a local path or a file:// URL — only its parser was read.
-The tested install path is the copy-and-restart sequence above.
+This repository is currently private, so that link will not work yet: cloning a
+private repo needs credentials the installer does not supply. It becomes usable
+once the repo is public. What has been tested end to end is the copy-and-restart
+sequence above; the in-app installer was read but not exercised, against either
+a local path or a remote.
 
 ## Known limitations
 
