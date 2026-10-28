@@ -3,9 +3,9 @@
 An Evangelion (NERV / MAGI) skin for Hermes Desktop: a dual-pilot colour theme,
 a launch boot sequence, and a MAGI HUD pane.
 
-This is a port of the DeepSeek Harness plugin DSH EVA Theme by seaison:
-
-    https://github.com/seaison/dsh-plugin-eva-theme
+This is a port of the DeepSeek Harness plugin DSH EVA Theme by seaison —
+https://github.com/seaison/dsh-plugin-eva-theme — with the host layer rewritten
+for Hermes Desktop.
 
 Repository: https://github.com/BrokenwingS83/hermes-eva-theme
 
