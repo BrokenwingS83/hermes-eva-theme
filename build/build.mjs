@@ -139,6 +139,16 @@ const STROKE_TOKENS = {
   }
 }
 
+/** Pilot accents used by the boot overlay.
+ *  Asuka's is the dark accent token verbatim; Rei's base hue only exists in the
+ *  light palette inside translucent fills (#23799d1f), so it is taken from one
+ *  and stripped of its alpha. Keeping both here means the 107-token table stays
+ *  the only colour source, and --check guards changes to them. */
+const PILOT_ACCENTS = {
+  asuka: pick('state-business-primary', 1),
+  rei: '#' + pick('bg-multi-select', 0).slice(1, 7)
+}
+
 const THEME = {
   name: 'eva',
   label: 'EVA',
@@ -156,10 +166,11 @@ const THEME = {
 // media
 // ---------------------------------------------------------------------------
 
+/** Only assets the artifact actually loads. Two upstream files (nerv-logo,
+ *  eva-entry-plug) are not referenced by this port, so requiring them would
+ *  mean asking a user who supplies their own media for two dead files. */
 const MEDIA = [
-  'svg/nerv-logo.svg',
   'svg/nerv-emergency.svg',
-  'svg/eva-entry-plug.svg',
   'anim/nerv-boot.gif',
   'art/asuka-avatar-closed-eyes.png',
   'art/rei-avatar-closed-eyes.png',
@@ -242,6 +253,8 @@ const plugin = [
   "import { createElement as h, useEffect, useState } from 'react'",
   '',
   'const EVA_THEME = ' + JSON.stringify(THEME, null, 2),
+  '',
+  'const PILOT_ACCENTS = ' + JSON.stringify(PILOT_ACCENTS, null, 2),
   '',
   'const STROKE_TOKENS = ' + JSON.stringify(STROKE_TOKENS, null, 2),
   '',
@@ -614,6 +627,8 @@ console.log('theme colour keys    :', Object.keys(MAP).length)
 console.log('media files ' + (CHECK ? 'checked' : 'copied ') + '     :', mediaCount, '(' + (mediaBytes / 1048576).toFixed(2) + ' MB)')
 console.log('isValidTheme shape   :', shapeOk ? 'PASS' : 'FAIL')
 console.log('sdk names checked    :', NEEDED_FROM_SDK.length, missingFromSdk.length ? 'MISSING ' + missingFromSdk.join(',') : 'all present')
+console.log('pilot accents        :', PILOT_ACCENTS.asuka, PILOT_ACCENTS.rei,
+  /^#[0-9a-f]{6}$/i.test(PILOT_ACCENTS.asuka) && /^#[0-9a-f]{6}$/i.test(PILOT_ACCENTS.rei) ? 'from palette' : 'MALFORMED')
 console.log('token rows           :', docTokens.length,
   missingRows.length ? 'MISSING ' + missingRows.join(',') : 'complete',
   duplicateRows.length ? 'DUPES ' + duplicateRows.join(',') : '', 

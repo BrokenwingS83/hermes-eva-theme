@@ -5,11 +5,9 @@ committed: `media-src/*` is gitignored, because these files are third-party
 material (see ../NOTICE). The build reads a file from here if it exists, and
 otherwise falls back to the upstream checkout in `vendor/`.
 
-Layout and exact file names (12 files, about 3.0 MB):
+Layout and exact file names (10 files, about 3.0 MB):
 
-    svg/nerv-logo.svg
     svg/nerv-emergency.svg
-    svg/eva-entry-plug.svg
     anim/nerv-boot.gif
     art/asuka-avatar-closed-eyes.png
     art/rei-avatar-closed-eyes.png
@@ -19,6 +17,9 @@ Layout and exact file names (12 files, about 3.0 MB):
     voice/rei-voice-select.mp3
     voice/rei-voice-boot.mp3
     voice/rei-voice-welcome.mp3
+
+Two upstream files, `svg/nerv-logo.svg` and `svg/eva-entry-plug.svg`, are not
+used by this port and are not required; skip them.
 
 The files that matter for behaviour:
 

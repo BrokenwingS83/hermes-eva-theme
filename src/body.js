@@ -48,9 +48,11 @@ const COPY = {
   en: { title: 'SELECT YOUR PILOT', sub: 'NEURAL LINK STARTING', sync: 'SYNCHRONIZING', skip: 'Esc to skip', loading: 'LOADING' }
 }
 
+/** Accents are injected from the upstream palette (see build/build.mjs), so
+ *  the 107-token table stays the only colour source. */
 const PILOTS = [
-  { id: 'asuka', name: 'ASUKA', number: '02', accent: '#ff354d', avatar: 'art/asuka-avatar-closed-eyes.png', select: 'voice/asuka-voice-select.mp3', boot: 'voice/asuka-voice-boot.mp3', welcome: 'voice/asuka-voice-welcome.mp3' },
-  { id: 'rei', name: 'REI', number: '00', accent: '#23799d', avatar: 'art/rei-avatar-closed-eyes.png', select: 'voice/rei-voice-select.mp3', boot: 'voice/rei-voice-boot.mp3', welcome: 'voice/rei-voice-welcome.mp3' }
+  { id: 'asuka', name: 'ASUKA', number: '02', accent: PILOT_ACCENTS.asuka, avatar: 'art/asuka-avatar-closed-eyes.png', select: 'voice/asuka-voice-select.mp3', boot: 'voice/asuka-voice-boot.mp3', welcome: 'voice/asuka-voice-welcome.mp3' },
+  { id: 'rei', name: 'REI', number: '00', accent: PILOT_ACCENTS.rei, avatar: 'art/rei-avatar-closed-eyes.png', select: 'voice/rei-voice-select.mp3', boot: 'voice/rei-voice-boot.mp3', welcome: 'voice/rei-voice-welcome.mp3' }
 ]
 
 // ---------------------------------------------------------------------------
@@ -124,24 +126,21 @@ const SCANLINE_OPACITY = { off: 0, low: 0.45, normal: 1 }
 const CLOCK_SCALES = [0.85, 1, 1.2]
 
 const settingsOf = (ctx) => {
-  let language = 'zh'
-  let scanline = 'normal'
-  let clockScale = 1
+  // Every read sits inside the guard: storage can throw (quota, disabled
+  // localStorage), and this runs in the MAGI pane's render, where a throw
+  // takes the whole pane down. A failed read falls back to the default.
+  const settings = { bootEnabled: true, clockScale: 1, language: 'zh', scanline: 'normal', soundEnabled: true }
   try {
     const storedLang = ctx.storage.get('bootLanguage', 'zh')
     const storedScanline = ctx.storage.get('scanline', 'normal')
     const storedScale = Number(ctx.storage.get('clockScale', 1))
-    if (COPY[storedLang]) language = storedLang
-    if (storedScanline in SCANLINE_OPACITY) scanline = storedScanline
-    if (CLOCK_SCALES.includes(storedScale)) clockScale = storedScale
+    if (COPY[storedLang]) settings.language = storedLang
+    if (storedScanline in SCANLINE_OPACITY) settings.scanline = storedScanline
+    if (CLOCK_SCALES.includes(storedScale)) settings.clockScale = storedScale
+    settings.bootEnabled = ctx.storage.get('bootEnabled', true) !== false
+    settings.soundEnabled = ctx.storage.get('soundEnabled', true) !== false
   } catch (_) {}
-  return {
-    bootEnabled: ctx.storage.get('bootEnabled', true) !== false,
-    clockScale,
-    language,
-    scanline,
-    soundEnabled: ctx.storage.get('soundEnabled', true) !== false
-  }
+  return settings
 }
 
 const applyScanline = (ctx) => {

@@ -1,5 +1,11 @@
 # Can dsh-plugin-eva-theme be fitted into Hermes Desktop?
 
+> Historical note: this assessment was written before the port. It is kept
+> unchanged as the record of what was believed and verified at that point. File
+> paths and layout have moved since — the current truth is README.md
+> (`build/build.mjs` generates `plugin/plugin.js`; there is no `out/` directory
+> and no `build-eva-theme.js`).
+
 Assessment of github.com/seaison/dsh-plugin-eva-theme (v0.51.2, MIT code, third-party
 EVA media) against the native Hermes Desktop app (`hermes desktop`).
 Checked 2026-10-28 against the SDK source in `~/.hermes/hermes-agent/apps/desktop`.
